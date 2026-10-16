@@ -11,7 +11,7 @@ const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '
 function seed() {
   const d = today();
   return {
-    seq: { item: 6, sup: 4, po: 3, mv: 8 },
+    seq: { item: 5, sup: 3, po: 2, mv: 5, emp: 3, pay: 2 },
     suppliers: [
       { id: 'S001', name: '대한철강', contact: '김철수', phone: '02-1111-2222', leadDays: 5 },
       { id: 'S002', name: '한국화학', contact: '이영희', phone: '031-333-4444', leadDays: 7 },
@@ -28,6 +28,18 @@ function seed() {
       { id: 'PO-0001', supplierId: 'S001', date: d, due: d, status: '발주', lines: [{ itemId: 'M002', qty: 400, price: 3500, received: 0 }] },
       { id: 'PO-0002', supplierId: 'S002', date: d, due: d, status: '작성', lines: [{ itemId: 'M004', qty: 100, price: 8000, received: 0 }] },
     ],
+    employees: [
+      { id: 'E001', name: '김정규', dept: '생산', position: '팀장', type: '정규직', hireDate: '2021-03-02', contractEnd: '', baseSalary: 4200000, phone: '010-1111-0001', status: '재직',
+        salaryLog: [{ date: '2021-03-02', amount: 3600000, memo: '입사' }, { date: '2024-01-01', amount: 4200000, memo: '승진 인상' }] },
+      { id: 'E002', name: '이계약', dept: '자재', position: '사원', type: '계약직', hireDate: '2026-03-01', contractEnd: addDays(20), baseSalary: 2800000, phone: '010-1111-0002', status: '재직',
+        salaryLog: [{ date: '2026-03-01', amount: 2800000, memo: '입사' }] },
+      { id: 'E003', name: '박계약', dept: '현장', position: '작업자', type: '계약직', hireDate: '2026-06-01', contractEnd: addDays(150), baseSalary: 2600000, phone: '010-1111-0003', status: '재직',
+        salaryLog: [{ date: '2026-06-01', amount: 2600000, memo: '입사' }] },
+    ],
+    payroll: [
+      { id: 'PAY-0001', month: today().slice(0, 7), empId: 'E001', base: 4200000, allowance: 200000, deduction: 450000, net: 3950000, paidDate: '' },
+      { id: 'PAY-0002', month: today().slice(0, 7), empId: 'E002', base: 2800000, allowance: 0, deduction: 260000, net: 2540000, paidDate: '' },
+    ],
     moves: [
       { id: 1, date: d, type: '입고', itemId: 'M001', qty: 820, ref: '기초재고', memo: '' },
       { id: 2, date: d, type: '입고', itemId: 'M002', qty: 120, ref: '기초재고', memo: '' },
@@ -39,10 +51,14 @@ function seed() {
 }
 let db;
 try { db = JSON.parse(localStorage.getItem(KEY)) || seed(); } catch { db = seed(); }
+{ const s = seed(); ['employees', 'payroll'].forEach(k => { db[k] ||= s[k]; }); db.seq.emp ||= s.seq.emp; db.seq.pay ||= s.seq.pay; }
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch { /* 저장 불가 시 메모리만 사용 */ } };
 const nextId = (k, prefix, pad) => prefix + String(++db.seq[k]).padStart(pad, '0');
 const item = id => db.items.find(i => i.id === id);
 const sup = id => db.suppliers.find(s => s.id === id);
+const emp = id => db.employees.find(e => e.id === id);
+const dday = e => Math.ceil((new Date(e.contractEnd) - new Date(today())) / 864e5);
+const contractWarn = e => e.status === '재직' && e.type === '계약직' && e.contractEnd && dday(e) <= 30;
 const poTotal = po => po.lines.reduce((a, l) => a + l.qty * l.price, 0);
 /* 발주 잔량(미입고) = 발주 중인 PO의 미입고 수량 합 */
 const onOrder = itemId => db.pos.filter(p => ['발주', '부분입고'].includes(p.status))
@@ -77,7 +93,9 @@ const views = {
       <div class="kpi"><span>재고 총액</span><b>${won(value)}</b></div>
       <div class="kpi ${low.length ? 'bad' : ''}"><span>안전재고 미달</span><b>${low.length}</b></div>
       <div class="kpi ${need.length ? 'warn' : ''}"><span>발주 필요 품목</span><b>${need.length}</b></div>
-      <div class="kpi"><span>진행중 발주</span><b>${open.length}</b></div></div>
+      <div class="kpi"><span>진행중 발주</span><b>${open.length}</b></div>
+      <div class="kpi"><span>재직 정규직 / 계약직</span><b>${db.employees.filter(e => e.status === '재직' && e.type === '정규직').length} / ${db.employees.filter(e => e.status === '재직' && e.type === '계약직').length}</b></div>
+      <div class="kpi ${db.employees.some(contractWarn) ? 'warn' : ''}"><span>계약 만료 임박(30일)</span><b>${db.employees.filter(contractWarn).length}</b></div></div>
     <div class="card"><h3>발주 필요 품목 (안전재고 − 현재고 − 발주잔량)</h3>${table(['품목', '현재고', '안전재고', '발주잔량', '부족수량'],
       need.map(i => [esc(i.name), num(i.stock) + i.unit, num(i.safety), num(onOrder(i.id)), `<span class="low">${num(shortage(i))}${i.unit}</span>`]), [1, 2, 3, 4])}
       ${need.length ? '<div class="foot"><button class="pri" data-act="autoPO">부족분 발주서 자동 생성</button></div>' : ''}</div>
@@ -114,6 +132,33 @@ const views = {
 
   movements: { title: '입출고 내역', render() { return movesTable([...db.moves].reverse()); } },
 
+  employees: { title: '인사 관리', actions: '<button class="pri" data-act="addEmp">+ 직원 등록</button>', render() {
+    const f = views.employees.f || '전체', q = (views.employees.q || '').toLowerCase();
+    const rows = db.employees.filter(e => (f === '전체' || e.type === f) && (!q || (e.name + e.dept + e.position).toLowerCase().includes(q)));
+    const act = e => `<button class="sm" data-act="empHistory" data-id="${e.id}">급여이력</button> <button class="sm" data-act="editEmp" data-id="${e.id}">수정</button>` +
+      (e.status === '재직' ? ` <button class="sm danger" data-act="retireEmp" data-id="${e.id}">퇴직</button>` : '');
+    return `<div class="bar"><select id="ef">${['전체', '정규직', '계약직'].map(t => `<option ${t === f ? 'selected' : ''}>${t}</option>`).join('')}</select>
+      <input id="eq" placeholder="이름/부서/직급 검색" value="${esc(views.employees.q || '')}"></div>` +
+      table(['사번', '이름', '부서', '직급', '고용형태', '입사일', '계약만료', '월 기본급', '상태', '작업'], rows.map(e => [e.id, esc(e.name), esc(e.dept), esc(e.position),
+        `<span class="badge ${e.type === '정규직' ? 'b-ok' : 'b-info'}">${e.type}</span>`, e.hireDate, contractBadge(e), won(e.baseSalary),
+        e.status === '재직' ? '재직' : `<span class="badge">퇴직 ${e.retireDate || ''}</span>`, act(e)]), [7]);
+  } },
+
+  payroll: { title: '급여 관리', actions: '<button class="pri" data-act="genPayroll">재직자 급여 일괄 생성</button>', render() {
+    const m = views.payroll.m || today().slice(0, 7);
+    const rows = db.payroll.filter(p => p.month === m);
+    const sum = k => rows.reduce((a, p) => a + p[k], 0);
+    return `<div class="bar"><input id="pm" type="month" value="${m}"></div>
+      <div class="kpis"><div class="kpi"><span>${m} 지급 대상</span><b>${rows.length}명</b></div><div class="kpi"><span>급여 총액(세전)</span><b>${won(sum('base') + sum('allowance'))}</b></div>
+      <div class="kpi"><span>실지급액 합계</span><b>${won(sum('net'))}</b></div><div class="kpi"><span>미지급</span><b>${rows.filter(p => !p.paidDate).length}건</b></div></div>` +
+      table(['명세번호', '직원', '고용형태', '기본급', '수당', '공제', '실지급액', '지급일', '작업'], rows.map(p => {
+        const e = emp(p.empId);
+        return [p.id, esc(e?.name || p.empId), e?.type || '-', won(p.base), won(p.allowance), won(p.deduction), `<b>${won(p.net)}</b>`,
+          p.paidDate || '<span class="badge b-warn">미지급</span>',
+          p.paidDate ? '' : `<button class="sm" data-act="editPay" data-id="${p.id}">수정</button> <button class="sm pri" data-act="payPay" data-id="${p.id}">지급 처리</button> <button class="sm danger" data-act="delPay" data-id="${p.id}">삭제</button>`];
+      }), [3, 4, 5, 6]);
+  } },
+
   suppliers: { title: '공급업체', actions: '<button class="pri" data-act="addSup">+ 업체 등록</button>', render() {
     return table(['코드', '업체명', '담당자', '연락처', '리드타임', '작업'],
       db.suppliers.map(s => [s.id, esc(s.name), esc(s.contact), esc(s.phone), s.leadDays + '일',
@@ -121,6 +166,13 @@ const views = {
   } },
 };
 
+function contractBadge(e) {
+  if (e.type !== '계약직' || e.status !== '재직' || !e.contractEnd) return '-';
+  const d = dday(e);
+  if (d < 0) return `<span class="badge b-bad">만료 (${e.contractEnd})</span>`;
+  if (d <= 30) return `<span class="badge b-warn">D-${d} (${e.contractEnd})</span>`;
+  return e.contractEnd;
+}
 function table(head, rows, numCols = []) {
   if (!rows.length) return '<div class="card" style="color:var(--mute)">데이터가 없습니다.</div>';
   return `<div class="tw"><table><thead><tr>${head.map((h, i) => `<th class="${numCols.includes(i) ? 'num' : ''}">${h}</th>`).join('')}</tr></thead><tbody>${
@@ -142,6 +194,10 @@ function show(v) {
   $('#title').textContent = views[v].title;
   $('#actions').innerHTML = views[v].actions || '';
   $('#view').innerHTML = views[v].render();
+  const ef = $('#ef'), eq = $('#eq'), pm = $('#pm');
+  if (ef) ef.onchange = () => { views.employees.f = ef.value; show('employees'); };
+  if (eq) eq.oninput = () => { views.employees.q = eq.value; const p = eq.selectionStart; show('employees'); const n = $('#eq'); n.focus(); n.setSelectionRange(p, p); };
+  if (pm) pm.onchange = () => { if (pm.value) { views.payroll.m = pm.value; show('payroll'); } };
   const q = $('#q');
   if (q) q.oninput = () => { views.inventory.q = q.value; const p = q.selectionStart; show('inventory'); const n = $('#q'); n.focus(); n.setSelectionRange(p, p); };
 }
@@ -161,6 +217,25 @@ const itemForm = (i = {}) => `<div class="grid">${field('품목명', 'name', i.n
 const supForm = (s = {}) => `<div class="grid">${field('업체명', 'name', s.name, 'text', 'required')}${field('담당자', 'contact', s.contact || '')}
   ${field('연락처', 'phone', s.phone || '')}${field('리드타임(일)', 'leadDays', s.leadDays ?? 3, 'number', 'min="0"')}</div>`;
 
+const empForm = (e = {}) => `<div class="grid">${field('이름', 'name', e.name, 'text', 'required')}${field('부서', 'dept', e.dept || '')}${field('직급', 'position', e.position || '')}
+  ${select('고용형태', 'type', [['정규직', '정규직'], ['계약직', '계약직']], e.type || '정규직')}${field('입사일', 'hireDate', e.hireDate || today(), 'date', 'required')}
+  ${field('계약 만료일(계약직)', 'contractEnd', e.contractEnd || '', 'date')}${field('월 기본급(원)', 'baseSalary', e.baseSalary ?? 0, 'number', 'min="0" required')}${field('연락처', 'phone', e.phone || '')}
+  ${e.id ? field('기본급 변경 사유', 'memo', '', 'text', 'placeholder="기본급을 바꿀 때 입력"') : ''}</div>`;
+function bindEmpForm() {
+  const f = $('#mForm'), sync = () => { const c = f.elements.contractEnd, c2 = f.elements.type.value === '계약직'; c.disabled = !c2; c.required = c2; if (!c2) c.value = ''; };
+  f.elements.type.onchange = sync; sync();
+}
+function saveEmp(fd, e) {
+  const data = { name: fd.get('name'), dept: fd.get('dept'), position: fd.get('position'), type: fd.get('type'), hireDate: fd.get('hireDate'),
+    contractEnd: fd.get('type') === '계약직' ? fd.get('contractEnd') : '', baseSalary: +fd.get('baseSalary'), phone: fd.get('phone') };
+  if (!e) { Object.assign(data, { id: nextId('emp', 'E', 3), status: '재직', salaryLog: [{ date: data.hireDate, amount: data.baseSalary, memo: '입사' }] }); db.employees.push(data); }
+  else {
+    if (data.baseSalary !== e.baseSalary) e.salaryLog.push({ date: today(), amount: data.baseSalary, memo: fd.get('memo') || '기본급 변경' });
+    if (data.type !== e.type) e.salaryLog.push({ date: today(), amount: data.baseSalary, memo: `${e.type} → ${data.type} 전환` });
+    Object.assign(e, data);
+  }
+  toast('저장 완료'); refresh();
+}
 function addDays(n) { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); }
 
 function poForm(po = { lines: [{ itemId: db.items[0]?.id, qty: 1, price: 0 }] }, supplierId = db.suppliers[0]?.id) {
@@ -191,6 +266,36 @@ function savePO(fd, existing) {
 }
 
 const A = {
+  addEmp() { openModal('직원 등록', empForm(), fd => saveEmp(fd)); bindEmpForm(); },
+  editEmp(id) { openModal('직원 수정', empForm(emp(id)), fd => saveEmp(fd, emp(id))); bindEmpForm(); },
+  retireEmp(id) { ask(`${emp(id).name} 직원을 퇴직 처리할까요? (급여·이력은 유지됩니다)`, () => { Object.assign(emp(id), { status: '퇴직', retireDate: today() }); refresh(); }); },
+  empHistory(id) {
+    const e = emp(id);
+    const log = [...e.salaryLog].reverse().map((l, k, a) => { const prev = a[k + 1]; const d = prev ? l.amount - prev.amount : 0;
+      return [l.date, won(l.amount), prev ? `<span class="${d >= 0 ? '' : 'low'}">${d >= 0 ? '+' : ''}${num(d)}원</span>` : '-', esc(l.memo)]; });
+    const pays = db.payroll.filter(p => p.empId === id).sort((a, b) => b.month.localeCompare(a.month))
+      .map(p => [p.month, won(p.base), won(p.allowance), won(p.deduction), `<b>${won(p.net)}</b>`, p.paidDate || '미지급']);
+    openModal(`${e.name} (${e.type}) 급여 이력`, `<h4>기본급 변경 이력</h4>${table(['적용일', '월 기본급', '변동', '사유'], log, [1, 2])}
+      <h4>월별 지급 이력</h4>${table(['귀속월', '기본급', '수당', '공제', '실지급액', '지급일'], pays, [1, 2, 3, 4])}`, () => {}, '닫기');
+  },
+  genPayroll() {
+    const m = views.payroll.m || today().slice(0, 7);
+    let n = 0;
+    db.employees.filter(e => e.status === '재직' && !db.payroll.some(p => p.month === m && p.empId === e.id)).forEach(e => {
+      db.payroll.push({ id: nextId('pay', 'PAY-', 4), month: m, empId: e.id, base: e.baseSalary, allowance: 0, deduction: 0, net: e.baseSalary, paidDate: '' }); n++;
+    });
+    toast(n ? `${m} 급여 ${n}건 생성 (수당·공제는 수정에서 입력)` : '생성할 대상이 없습니다.'); refresh();
+  },
+  editPay(id) {
+    const p = db.payroll.find(x => x.id === id);
+    openModal(`${p.id} 수정 - ${emp(p.empId)?.name}`, `<div class="grid">${field('기본급', 'base', p.base, 'number', 'min="0" required')}${field('수당', 'allowance', p.allowance, 'number', 'min="0"')}
+      ${field('공제(세금·보험 등)', 'deduction', p.deduction, 'number', 'min="0"')}</div>`, fd => {
+      Object.assign(p, { base: +fd.get('base'), allowance: +fd.get('allowance') || 0, deduction: +fd.get('deduction') || 0 });
+      p.net = p.base + p.allowance - p.deduction; refresh();
+    });
+  },
+  payPay(id) { db.payroll.find(p => p.id === id).paidDate = today(); toast('지급 처리 완료'); refresh(); },
+  delPay(id) { ask('이 급여 명세를 삭제할까요?', () => { db.payroll = db.payroll.filter(p => p.id !== id); refresh(); }); },
   addItem() { openModal('품목 등록', itemForm(), fd => { db.items.push({ id: nextId('item', 'M', 3), name: fd.get('name'), category: fd.get('category'), unit: fd.get('unit'), supplierId: fd.get('supplierId'), price: +fd.get('price'), safety: +fd.get('safety'), stock: 0 }); refresh(); }); },
   editItem(id) { const i = item(id); openModal('품목 수정', itemForm(i), fd => { Object.assign(i, { name: fd.get('name'), category: fd.get('category'), unit: fd.get('unit'), supplierId: fd.get('supplierId'), price: +fd.get('price'), safety: +fd.get('safety') }); refresh(); }); },
   delItem(id) {
