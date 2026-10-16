@@ -41,10 +41,10 @@ function seed() {
       { id: 'PAY-0002', month: today().slice(0, 7), empId: 'E002', base: 2800000, allowance: 0, deduction: 260000, net: 2540000, paidDate: '' },
     ],
     sites: [
-      { id: 'ST001', name: '한강 제2교량 신설', type: '교량', location: '서울 강동구', manager: '김정규', startDate: addDays(-300), endDate: addDays(200), progress: 62, phase: '상부구조(거더)', budget: 2800000000, extraWorkers: 34 },
-      { id: 'ST002', name: '낙동강 인도교 설계', type: '교량', location: '경남 창녕군', manager: '박설계', startDate: addDays(-60), endDate: addDays(240), progress: 18, phase: '지반조사', budget: 450000000, extraWorkers: 6 },
-      { id: 'ST003', name: '행복 아파트 A단지', type: '아파트', location: '경기 화성시', manager: '이계약', startDate: addDays(-240), endDate: addDays(300), progress: 41, phase: '골조', budget: 5600000000, extraWorkers: 78 },
-      { id: 'ST004', name: '해솔 아파트 B단지', type: '아파트', location: '인천 서구', manager: '최소장', startDate: addDays(-520), endDate: addDays(40), progress: 88, phase: '내부마감', budget: 4100000000, extraWorkers: 52 },
+      { id: 'ST001', name: '한강 제2교량 신설', type: '교량', location: '서울 강동구', manager: '김정규', startDate: addDays(-300), endDate: addDays(200), progress: 62, phase: '상부구조(거더)', budget: 2800000000, extraWorkers: 34, cameras: [{ name: '교량 상판 전경', url: '' }, { name: '타워크레인 구역', url: '' }, { name: '자재 야적장', url: '' }, { name: '정문', url: '' }, { name: '가설 사무소', url: '' }] },
+      { id: 'ST002', name: '낙동강 인도교 설계', type: '교량', location: '경남 창녕군', manager: '박설계', startDate: addDays(-60), endDate: addDays(240), progress: 18, phase: '지반조사', budget: 450000000, extraWorkers: 6, cameras: [{ name: '측량 구간', url: '' }, { name: '시추 작업 구역', url: '' }, { name: '정문', url: '' }] },
+      { id: 'ST003', name: '행복 아파트 A단지', type: '아파트', location: '경기 화성시', manager: '이계약', startDate: addDays(-240), endDate: addDays(300), progress: 41, phase: '골조', budget: 5600000000, extraWorkers: 78, cameras: [{ name: 'A동 골조', url: '' }, { name: 'B동 골조', url: '' }, { name: '타워크레인 1', url: '' }, { name: '타워크레인 2', url: '' }, { name: '자재 야적장', url: '' }, { name: '정문', url: '' }] },
+      { id: 'ST004', name: '해솔 아파트 B단지', type: '아파트', location: '인천 서구', manager: '최소장', startDate: addDays(-520), endDate: addDays(40), progress: 88, phase: '내부마감', budget: 4100000000, extraWorkers: 52, cameras: [{ name: '1동 내부 마감', url: '' }, { name: '2동 외부', url: '' }, { name: '주차장', url: '' }, { name: '정문', url: '' }, { name: '자재 반입구', url: '' }] },
     ],
     siteCosts: [
       { id: 'SC-0001', siteId: 'ST001', date: addDays(-30), category: '자재비', amount: 1020000000, memo: '기집행(기초)', journal: false },
@@ -84,7 +84,7 @@ function seed() {
 }
 let db;
 try { db = JSON.parse(localStorage.getItem(KEY)) || seed(); } catch { db = seed(); }
-{ const s = seed(); ['sites', 'siteCosts', 'employees', 'payroll', 'customers', 'salesOrders', 'prs', 'ar', 'ap', 'journal'].forEach(k => { db[k] ||= s[k]; }); Object.keys(s.seq).forEach(k => { db.seq[k] ??= s.seq[k]; }); db.employees.forEach(e => { if (e.siteId === undefined) e.siteId = s.employees.find(x => x.id === e.id)?.siteId || ''; }); }
+{ const s = seed(); ['sites', 'siteCosts', 'employees', 'payroll', 'customers', 'salesOrders', 'prs', 'ar', 'ap', 'journal'].forEach(k => { db[k] ||= s[k]; }); Object.keys(s.seq).forEach(k => { db.seq[k] ??= s.seq[k]; }); db.sites.forEach(x => { x.cameras ??= s.sites.find(y => y.id === x.id)?.cameras || []; }); db.employees.forEach(e => { if (e.siteId === undefined) e.siteId = s.employees.find(x => x.id === e.id)?.siteId || ''; }); }
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch { /* 저장 불가 시 메모리만 사용 */ } };
 const nextId = (k, prefix, pad) => prefix + String(++db.seq[k]).padStart(pad, '0');
 const item = id => db.items.find(i => i.id === id);
@@ -105,6 +105,7 @@ const PHASES = {
   교량: ['설계', '지반조사', '기초공', '교각공', '상부구조(거더)', '교면포장', '부대공', '준공'],
   아파트: ['설계·인허가', '터파기·기초', '골조', '외장·창호', '설비·전기', '내부마감', '조경·외부', '준공·입주'],
 };
+const CAM_ICON = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>';
 const eok = n => n >= 1e8 ? (n / 1e8).toLocaleString('ko-KR', { maximumFractionDigits: 1 }) + '억원' : won(n);
 function siteStats(s) {
   const staff = db.employees.filter(e => e.siteId === s.id && e.status === '재직');
@@ -128,15 +129,16 @@ const shortage = i => Math.max(0, i.safety - i.stock - onOrder(i.id));
 function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.remove('hidden'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.add('hidden'), 2200); }
 
 /* ---------- 모달 ---------- */
-function openModal(title, html, onSubmit, label = '저장') {
+function openModal(title, html, onSubmit, label = '저장', wide = false) {
   $('#mTitle').textContent = title;
   $('#mForm').innerHTML = html + '<div class="foot"><button type="button" id="mCancel">취소</button><button class="pri">' + label + '</button></div>';
   $('#modal').classList.remove('hidden');
+  $('#modal .box').style.maxWidth = wide ? '1000px' : '';
   $('#mCancel').onclick = closeModal;
   $('#mForm').onsubmit = e => { e.preventDefault(); if (onSubmit(new FormData(e.target), e.target) !== false) closeModal(); };
 }
 const ask = (msg, fn) => openModal('확인', `<p>${esc(msg)}</p>`, () => { fn(); }, '확인');
-const closeModal = () => $('#modal').classList.add('hidden');
+const closeModal = () => { stopFeeds(); $('#modal').classList.add('hidden'); };
 const field = (label, name, val = '', type = 'text', extra = '') => `<label>${label}<input name="${name}" type="${type}" value="${esc(val)}" ${extra}></label>`;
 const select = (label, name, opts, sel, cls = '') => `<label class="${cls}">${label}<select name="${name}">${opts.map(([v, t]) => `<option value="${esc(v)}" ${v === sel ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></label>`;
 
@@ -227,9 +229,10 @@ const views = {
     const late = st.filter(([, x]) => ['공정 지연'].includes(x.state[0])).length;
     const card = ([s, x]) => {
       const ph = PHASES[s.type], cur = ph.indexOf(s.phase), pct = Math.round(x.spent / s.budget * 100);
-      return `<article class="site"><div class="sh"><div><h3>${esc(s.name)}</h3><div class="sub">${esc(s.location)} · 현장소장 ${esc(s.manager)}</div></div>
-        <div class="tags"><span class="badge ${s.type === '교량' ? 'b-info' : 'b-warn'}">${s.type}</span> <span class="badge ${x.state[1]}">${x.state[0]}</span></div></div>
-        <div class="prog"><div class="pl"><b>${s.progress}%</b><span>계획 ${x.plan}% · ${x.dleft >= 0 ? `준공까지 ${num(x.dleft)}일` : `준공예정 ${-x.dleft}일 경과`}</span></div>
+      return `<article class="site"><div class="sh"><div><h3>${esc(s.name)}</h3><div class="sub">${esc(s.location)} · 현장소장 ${esc(s.manager)}</div>
+          <div class="dates"><span>착공일 <b>${s.startDate}</b></span><span>계약 종료일 <b>${s.endDate}</b></span></div></div>
+        <div class="tags"><button class="cctv" data-act="siteCctv" data-id="${s.id}" title="CCTV 보기">${CAM_ICON}<b>${(s.cameras || []).length}</b></button> <span class="badge ${s.type === '교량' ? 'b-info' : 'b-warn'}">${s.type}</span> <span class="badge ${x.state[1]}">${x.state[0]}</span></div></div>
+        <div class="prog"><div class="pl"><b>${s.progress}%</b><span>계획 ${x.plan}% · ${x.dleft >= 0 ? `계약 종료까지 ${num(x.dleft)}일` : `계약 종료 ${-x.dleft}일 경과`}</span></div>
           <div class="track"><i class="${x.state[1]}" style="width:${s.progress}%"></i><u style="left:${x.plan}%"></u></div></div>
         <div class="cur">현재 공정 <b>${esc(s.phase)}</b> <span>(${s.progress >= 100 ? ph.length : cur + 1}/${ph.length} 단계)</span></div>
         <div class="steps" title="전체 공정">${ph.map((p, k) => `<span class="${k < cur ? 'done' : k === cur ? 'now' : ''}">${esc(p)}</span>`).join('')}</div>
@@ -379,7 +382,7 @@ function soForm() {
     <div class="lines"><b>수주 품목 (제품명 / 수량 / 단가)</b><div id="lines">${row}</div><button type="button" class="sm" id="addLine">+ 품목 추가</button></div><template id="lineTpl">${row}</template>`;
 }
 const siteForm = (s = {}) => `<div class="grid">${field('현장명', 'name', s.name, 'text', 'required')}${select('공사 종류', 'type', [['교량', '교량'], ['아파트', '아파트']], s.type || '교량')}
-  ${field('위치', 'location', s.location || '')}${field('현장소장', 'manager', s.manager || '')}${field('착공일', 'startDate', s.startDate || today(), 'date', 'required')}${field('준공예정일', 'endDate', s.endDate || addDays(365), 'date', 'required')}
+  ${field('위치', 'location', s.location || '')}${field('현장소장', 'manager', s.manager || '')}${field('착공일(시작일)', 'startDate', s.startDate || today(), 'date', 'required')}${field('계약 종료일', 'endDate', s.endDate || addDays(365), 'date', 'required')}
   ${field('총 예산(원)', 'budget', s.budget ?? 0, 'number', 'min="1" required')}${field('외주·일용 인원(명)', 'extraWorkers', s.extraWorkers ?? 0, 'number', 'min="0"')}</div>`;
 function bindSiteForm() { }
 function readSite(fd, s) {
@@ -387,6 +390,46 @@ function readSite(fd, s) {
   Object.assign(s, { name: fd.get('name'), type, location: fd.get('location'), manager: fd.get('manager'), startDate: fd.get('startDate'), endDate: fd.get('endDate'), budget: +fd.get('budget'), extraWorkers: +fd.get('extraWorkers') || 0 });
   if (!PHASES[type].includes(s.phase)) s.phase = PHASES[type][0];
   return s;
+}
+let feeds = [];
+function stopFeeds() { feeds.forEach(f => { try { f(); } catch { /* 정리 실패 무시 */ } }); feeds = []; }
+function failFeed(box) { box.innerHTML = '<div class="nofeed">영상을 불러오지 못했습니다.<br>주소와 네트워크를 확인하세요.</div>'; }
+function loadHls(cb) {
+  if (window.Hls) return cb();
+  const sc = document.createElement('script'); sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.13/hls.min.js'; sc.onload = cb; sc.onerror = cb; document.head.append(sc);
+}
+function demoFeed(box, name) {
+  const cv = document.createElement('canvas'); cv.width = 640; cv.height = 360; box.append(cv);
+  const g = cv.getContext('2d'); let t = 0;
+  const draw = () => {
+    t++; const gr = g.createLinearGradient(0, 0, 640, 360); gr.addColorStop(0, '#1b2430'); gr.addColorStop(1, '#0b0f14'); g.fillStyle = gr; g.fillRect(0, 0, 640, 360);
+    g.strokeStyle = 'rgba(255,255,255,.06)'; for (let x = 0; x < 640; x += 40) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, 360); g.stroke(); }
+    for (let y = 0; y < 360; y += 40) { g.beginPath(); g.moveTo(0, y); g.lineTo(640, y); g.stroke(); }
+    g.fillStyle = 'rgba(120,170,255,.18)'; g.fillRect((t * 9) % 700 - 60, 150 + Math.sin(t / 5) * 20, 60, 90);
+    for (let k = 0; k < 90; k++) { g.fillStyle = `rgba(255,255,255,${Math.random() * .08})`; g.fillRect(Math.random() * 640, Math.random() * 360, 2, 2); }
+    g.fillStyle = 'rgba(255,255,255,.55)'; g.font = '16px sans-serif'; g.fillText('데모 화면 (영상 주소 미등록)', 14, 190);
+    g.fillStyle = '#fff'; g.font = '14px monospace'; g.fillText(new Date().toLocaleString('ko-KR'), 14, 344);
+    if (t % 2) { g.fillStyle = '#ef4444'; g.beginPath(); g.arc(612, 24, 6, 0, 7); g.fill(); }
+  };
+  draw(); const id = setInterval(draw, 500); feeds.push(() => clearInterval(id));
+}
+function startFeeds() {
+  stopFeeds();
+  document.querySelectorAll('#mForm .cam').forEach(tile => {
+    const url = tile.dataset.url, box = tile.querySelector('.vid');
+    tile.onclick = () => tile.classList.toggle('big');
+    if (!url) return demoFeed(box, tile.dataset.name);
+    if (/\.m3u8(\?|$)/i.test(url)) {
+      const v = document.createElement('video'); v.muted = true; v.autoplay = true; v.playsInline = true; v.onerror = () => failFeed(box); box.append(v);
+      if (v.canPlayType('application/vnd.apple.mpegurl')) v.src = url;
+      else loadHls(() => {
+        if (!window.Hls || !Hls.isSupported()) return failFeed(box);
+        const h = new Hls(); feeds.push(() => h.destroy()); h.loadSource(url); h.attachMedia(v); h.on(Hls.Events.ERROR, (e, d) => { if (d.fatal) failFeed(box); });
+      });
+    } else if (/\.(mjpe?g|jpe?g|png)(\?|$)|mjpeg|snapshot/i.test(url)) {
+      const im = document.createElement('img'); im.onerror = () => failFeed(box); im.src = url; box.append(im);
+    } else { const fr = document.createElement('iframe'); fr.src = url; fr.allow = 'autoplay'; box.append(fr); }
+  });
 }
 function addDays(n) { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); }
 
@@ -532,6 +575,24 @@ const A = {
     openModal(s.name, `<h4>전체 공정 (${s.type}) - 공정률 ${s.progress}%</h4>${tl}<h4>구분별 집행</h4>${table(['구분', '금액', '예산 대비'], Object.entries(byCat).map(([k, v]) => [k, won(v), (v / s.budget * 100).toFixed(1) + '%']), [1, 2])}
       <h4>비용 내역</h4>${table(['일자', '구분', '금액', '내용'], costs, [2])}
       <h4>배치 직원</h4>${table(['사번', '이름', '직급', '고용형태'], x.staff.map(e => [e.id, esc(e.name), esc(e.position), e.type]), [])}`, () => {}, '닫기');
+  },
+  siteCctv(id) {
+    const s = site(id), cams = s.cameras || [];
+    const tiles = cams.length ? cams.map(c => `<div class="cam" data-url="${esc(c.url)}" data-name="${esc(c.name)}"><div class="vid"></div><span class="lab"><i></i>${esc(c.name)}</span></div>`).join('')
+      : '<div class="card" style="color:var(--mute)">등록된 카메라가 없습니다. 카메라 관리에서 추가하세요.</div>';
+    openModal(`${s.name} CCTV (${cams.length}대)`, `<div class="bar"><button type="button" class="sm" id="camMng">카메라 관리</button><span class="hint">화면을 누르면 크게 보입니다.</span></div><div class="camgrid">${tiles}</div>`, () => {}, '닫기', true);
+    $('#camMng').onclick = () => A.camManage(id); startFeeds();
+  },
+  camManage(id) {
+    const s = site(id), row = c => `<div class="row cam2"><input name="cn" placeholder="카메라 이름" value="${esc(c.name)}"><input name="cu" placeholder="영상 주소 (HLS .m3u8 / MJPEG / 웹페이지), 비우면 데모" value="${esc(c.url)}"><button type="button" class="sm danger" data-rm>✕</button></div>`;
+    stopFeeds();
+    openModal(`${s.name} 카메라 관리`, `<div class="lines"><div id="lines">${(s.cameras || []).map(row).join('') || row({ name: '', url: '' })}</div><button type="button" class="sm" id="addLine">+ 카메라 추가</button></div>
+      <p class="hint">브라우저는 RTSP를 직접 재생할 수 없습니다. HLS(.m3u8)나 MJPEG 주소 또는 영상 중계 서버의 웹 주소를 입력하세요. 보안을 위해 주소에 계정 정보를 넣을 때는 VPN 안에서만 사용하세요.</p><template id="lineTpl">${row({ name: '', url: '' })}</template>`, fd => {
+      const n = fd.getAll('cn'), u = fd.getAll('cu');
+      s.cameras = n.map((x, k) => ({ name: x.trim(), url: u[k].trim() })).filter(c => c.name);
+      toast(`카메라 ${s.cameras.length}대 저장`); refresh(); setTimeout(() => A.siteCctv(id), 0); return false;
+    });
+    bindPoForm();
   },
   addItem() { openModal('품목 등록', itemForm(), fd => { db.items.push({ id: nextId('item', 'M', 3), name: fd.get('name'), category: fd.get('category'), unit: fd.get('unit'), supplierId: fd.get('supplierId'), price: +fd.get('price'), safety: +fd.get('safety'), stock: 0 }); refresh(); }); },
   editItem(id) { const i = item(id); openModal('품목 수정', itemForm(i), fd => { Object.assign(i, { name: fd.get('name'), category: fd.get('category'), unit: fd.get('unit'), supplierId: fd.get('supplierId'), price: +fd.get('price'), safety: +fd.get('safety') }); refresh(); }); },

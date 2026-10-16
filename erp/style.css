@@ -66,3 +66,12 @@ input,select,textarea{font:inherit;padding:7px 9px;border:1px solid var(--line);
 .tl i{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-style:normal;background:var(--chip);color:var(--mute);flex:none}
 .tl span{flex:1}.tl em{font-style:normal;font-size:12px;color:var(--mute)}
 .tl .done i{background:var(--ok);color:#fff}.tl .now{outline:2px solid var(--pri)}.tl .now i{background:var(--pri);color:#fff}.tl .now em{color:var(--pri);font-weight:600}
+.dates{display:flex;gap:12px;flex-wrap:wrap;margin-top:6px;font-size:12px;color:var(--mute)}.dates b{color:var(--text);font-weight:600}
+.cctv{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:12px;background:var(--infobg);color:var(--pri);border-color:transparent}.cctv:hover{background:var(--pri);color:#fff}.cctv b{font-size:12px}
+.camgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,280px),1fr));gap:8px}
+.cam{position:relative;aspect-ratio:16/9;background:#000;border-radius:6px;overflow:hidden;cursor:pointer}.cam.big{grid-column:1/-1}
+.cam .vid,.cam canvas,.cam video,.cam img,.cam iframe{width:100%;height:100%;object-fit:cover;border:0;display:block}
+.cam .lab{position:absolute;left:8px;top:6px;color:#fff;font-size:12px;text-shadow:0 1px 3px #000;pointer-events:none;display:flex;align-items:center;gap:5px}
+.cam .lab i{width:7px;height:7px;border-radius:50%;background:#ef4444}
+.nofeed{color:#cbd5e1;font-size:12px;text-align:center;display:grid;place-items:center;height:100%;padding:8px}
+.hint{color:var(--mute);font-size:12px}.lines .row.cam2{grid-template-columns:1fr 2fr auto}
