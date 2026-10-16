@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ERP - 원자재 조달 및 재고관리</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<aside class="sidebar">
+  <h1>ERP<small>원자재 조달·재고</small></h1>
+  <nav id="nav">
+    <button data-view="dashboard" class="active">대시보드</button>
+    <button data-view="items">품목 관리</button>
+    <button data-view="inventory">재고 현황</button>
+    <button data-view="orders">발주 관리</button>
+    <button data-view="movements">입출고 내역</button>
+    <button data-view="suppliers">공급업체</button>
+  </nav>
+  <button id="resetBtn" class="ghost">샘플 데이터 초기화</button>
+</aside>
+<main>
+  <header><h2 id="title"></h2><div id="actions"></div></header>
+  <section id="view"></section>
+</main>
+<div id="modal" class="modal hidden"><div class="box"><h3 id="mTitle"></h3><form id="mForm"></form></div></div>
+<div id="toast" class="toast hidden"></div>
+<script src="app.js"></script>
+</body>
+</html>
