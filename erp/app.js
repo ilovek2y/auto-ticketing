@@ -11,7 +11,7 @@ const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '
 function seed() {
   const d = today();
   return {
-    seq: { item: 5, sup: 3, po: 2, mv: 5, emp: 3, pay: 2 },
+    seq: { item: 5, sup: 3, po: 2, mv: 5, emp: 3, pay: 2, cust: 2, so: 2, pr: 1, ar: 1, ap: 1, jv: 3 },
     suppliers: [
       { id: 'S001', name: '대한철강', contact: '김철수', phone: '02-1111-2222', leadDays: 5 },
       { id: 'S002', name: '한국화학', contact: '이영희', phone: '031-333-4444', leadDays: 7 },
@@ -40,6 +40,24 @@ function seed() {
       { id: 'PAY-0001', month: today().slice(0, 7), empId: 'E001', base: 4200000, allowance: 200000, deduction: 450000, net: 3950000, paidDate: '' },
       { id: 'PAY-0002', month: today().slice(0, 7), empId: 'E002', base: 2800000, allowance: 0, deduction: 260000, net: 2540000, paidDate: '' },
     ],
+    customers: [
+      { id: 'C001', name: '(주)한빛전자', contact: '정대리', phone: '02-700-1000' },
+      { id: 'C002', name: '미래산업', contact: '최과장', phone: '031-800-2000' },
+    ],
+    salesOrders: [
+      { id: 'SO-0001', customerId: 'C001', date: today(), due: addDays(10), status: '수주', lines: [{ name: '제품A', qty: 100, price: 18000 }] },
+      { id: 'SO-0002', customerId: 'C002', date: today(), due: today(), status: '출하완료', shipDate: today(), lines: [{ name: '제품B', qty: 60, price: 30000 }] },
+    ],
+    prs: [
+      { id: 'PR-0001', date: today(), requester: '이계약', itemId: 'M004', qty: 100, reason: '도료 재고 부족', status: '요청', poId: '' },
+    ],
+    ar: [{ id: 'AR-0001', ref: 'SO-0002', customerId: 'C002', date: today(), due: addDays(30), amount: 1800000, paidDate: '' }],
+    ap: [{ id: 'AP-0001', ref: '기초매입', supplierId: 'S001', date: today(), due: addDays(30), amount: 840000, paidDate: '' }],
+    journal: [
+      { id: 'JV-0001', date: today(), debit: '현금', credit: '자본금', amount: 10000000, memo: '자본금 납입', ref: '' },
+      { id: 'JV-0002', date: today(), debit: '외상매출금', credit: '매출', amount: 1800000, memo: '제품B 출하 매출', ref: 'SO-0002' },
+      { id: 'JV-0003', date: today(), debit: '원재료', credit: '외상매입금', amount: 840000, memo: '원자재 매입', ref: 'AP-0001' },
+    ],
     moves: [
       { id: 1, date: d, type: '입고', itemId: 'M001', qty: 820, ref: '기초재고', memo: '' },
       { id: 2, date: d, type: '입고', itemId: 'M002', qty: 120, ref: '기초재고', memo: '' },
@@ -51,11 +69,22 @@ function seed() {
 }
 let db;
 try { db = JSON.parse(localStorage.getItem(KEY)) || seed(); } catch { db = seed(); }
-{ const s = seed(); ['employees', 'payroll'].forEach(k => { db[k] ||= s[k]; }); db.seq.emp ||= s.seq.emp; db.seq.pay ||= s.seq.pay; }
+{ const s = seed(); ['employees', 'payroll', 'customers', 'salesOrders', 'prs', 'ar', 'ap', 'journal'].forEach(k => { db[k] ||= s[k]; }); Object.keys(s.seq).forEach(k => { db.seq[k] ??= s.seq[k]; }); }
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch { /* 저장 불가 시 메모리만 사용 */ } };
 const nextId = (k, prefix, pad) => prefix + String(++db.seq[k]).padStart(pad, '0');
 const item = id => db.items.find(i => i.id === id);
 const sup = id => db.suppliers.find(s => s.id === id);
+const cust = id => db.customers.find(c => c.id === id);
+const lineTotal = o => o.lines.reduce((a, l) => a + l.qty * l.price, 0);
+const ACCTS = [['현금', '자산'], ['외상매출금', '자산'], ['원재료', '자산'], ['외상매입금', '부채'], ['예수금', '부채'], ['자본금', '자본'], ['매출', '수익'], ['기타수익', '수익'], ['급여', '비용'], ['기타비용', '비용']];
+const acctType = n => ACCTS.find(a => a[0] === n)[1];
+function jv(debit, credit, amount, memo, ref = '') { if (amount > 0) db.journal.push({ id: nextId('jv', 'JV-', 4), date: today(), debit, credit, amount, memo, ref }); }
+/* 계정 잔액: 자산·비용은 차변-대변, 부채·자본·수익은 대변-차변 */
+function balances() {
+  const b = Object.fromEntries(ACCTS.map(([n]) => [n, { d: 0, c: 0 }]));
+  db.journal.forEach(j => { b[j.debit].d += j.amount; b[j.credit].c += j.amount; });
+  return ACCTS.map(([n, t]) => ({ n, t, d: b[n].d, c: b[n].c, bal: ['자산', '비용'].includes(t) ? b[n].d - b[n].c : b[n].c - b[n].d }));
+}
 const emp = id => db.employees.find(e => e.id === id);
 const dday = e => Math.ceil((new Date(e.contractEnd) - new Date(today())) / 864e5);
 const contractWarn = e => e.status === '재직' && e.type === '계약직' && e.contractEnd && dday(e) <= 30;
@@ -95,6 +124,8 @@ const views = {
       <div class="kpi ${need.length ? 'warn' : ''}"><span>발주 필요 품목</span><b>${need.length}</b></div>
       <div class="kpi"><span>진행중 발주</span><b>${open.length}</b></div>
       <div class="kpi"><span>재직 정규직 / 계약직</span><b>${db.employees.filter(e => e.status === '재직' && e.type === '정규직').length} / ${db.employees.filter(e => e.status === '재직' && e.type === '계약직').length}</b></div>
+      <div class="kpi"><span>미수금</span><b>${won(db.ar.filter(a => !a.paidDate).reduce((s, a) => s + a.amount, 0))}</b></div>
+      <div class="kpi"><span>미지급금</span><b>${won(db.ap.filter(a => !a.paidDate).reduce((s, a) => s + a.amount, 0))}</b></div>
       <div class="kpi ${db.employees.some(contractWarn) ? 'warn' : ''}"><span>계약 만료 임박(30일)</span><b>${db.employees.filter(contractWarn).length}</b></div></div>
     <div class="card"><h3>발주 필요 품목 (안전재고 − 현재고 − 발주잔량)</h3>${table(['품목', '현재고', '안전재고', '발주잔량', '부족수량'],
       need.map(i => [esc(i.name), num(i.stock) + i.unit, num(i.safety), num(onOrder(i.id)), `<span class="low">${num(shortage(i))}${i.unit}</span>`]), [1, 2, 3, 4])}
@@ -157,6 +188,56 @@ const views = {
           p.paidDate || '<span class="badge b-warn">미지급</span>',
           p.paidDate ? '' : `<button class="sm" data-act="editPay" data-id="${p.id}">수정</button> <button class="sm pri" data-act="payPay" data-id="${p.id}">지급 처리</button> <button class="sm danger" data-act="delPay" data-id="${p.id}">삭제</button>`];
       }), [3, 4, 5, 6]);
+  } },
+
+  customers: { title: '고객 관리', actions: '<button class="pri" data-act="addCust">+ 고객 등록</button>', render() {
+    return table(['코드', '고객명', '담당자', '연락처', '수주 건수', '미수금', '작업'], db.customers.map(c => [c.id, esc(c.name), esc(c.contact), esc(c.phone),
+      db.salesOrders.filter(o => o.customerId === c.id && o.status !== '취소').length, won(db.ar.filter(a => a.customerId === c.id && !a.paidDate).reduce((s, a) => s + a.amount, 0)),
+      `<button class="sm" data-act="editCust" data-id="${c.id}">수정</button> <button class="sm danger" data-act="delCust" data-id="${c.id}">삭제</button>`]), [4, 5]);
+  } },
+
+  sales: { title: '수주 관리', actions: '<button class="pri" data-act="addSO">+ 수주 등록</button>', render() {
+    const cls = { 수주: 'b-info', 출하완료: 'b-ok', 취소: 'b-bad' };
+    return table(['수주번호', '고객', '수주일', '납기일', '품목', '금액', '상태', '작업'], [...db.salesOrders].reverse().map(o => [o.id, esc(cust(o.customerId)?.name || '-'), o.date, o.due,
+      esc(o.lines.map(l => `${l.name} ${num(l.qty)}`).join(', ')), won(lineTotal(o)), `<span class="badge ${cls[o.status]}">${o.status}</span>`,
+      o.status === '수주' ? `<button class="sm pri" data-act="shipSO" data-id="${o.id}">출하 처리</button> <button class="sm danger" data-act="cancelSO" data-id="${o.id}">취소</button>` : '']), [5]);
+  } },
+
+  requests: { title: '구매요청', actions: '<button class="pri" data-act="addPR">+ 구매요청</button>', render() {
+    const cls = { 요청: 'b-info', 승인: 'b-warn', 반려: 'b-bad', 발주전환: 'b-ok' };
+    return table(['요청번호', '요청일', '요청자', '품목', '수량', '사유', '상태', '작업'], [...db.prs].reverse().map(r => {
+      const i = item(r.itemId);
+      const b = r.status === '요청' ? `<button class="sm pri" data-act="approvePR" data-id="${r.id}">승인</button> <button class="sm danger" data-act="rejectPR" data-id="${r.id}">반려</button>`
+        : r.status === '승인' ? `<button class="sm pri" data-act="prToPO" data-id="${r.id}">발주서 생성</button>` : esc(r.poId);
+      return [r.id, r.date, esc(r.requester), esc(i?.name || r.itemId), num(r.qty) + (i?.unit || ''), esc(r.reason), `<span class="badge ${cls[r.status]}">${r.status}</span>`, b];
+    }), [4]);
+  } },
+
+  arap: { title: '채권·채무', render() {
+    const od = x => !x.paidDate && x.due < today() ? ' <span class="badge b-bad">연체</span>' : '';
+    const sum = l => won(l.filter(x => !x.paidDate).reduce((s, x) => s + x.amount, 0));
+    return `<h3>미수금 (매출채권) - 미입금 합계 ${sum(db.ar)}</h3>` + table(['번호', '고객', '발생일', '입금기한', '금액', '입금일', '작업'], [...db.ar].reverse().map(a => [a.id, esc(cust(a.customerId)?.name || '-'), a.date, a.due + od(a), won(a.amount),
+      a.paidDate || '<span class="badge b-warn">미입금</span>', a.paidDate ? '' : `<button class="sm pri" data-act="receiveAR" data-id="${a.id}">입금 처리</button>`]), [4])
+      + `<h3 style="margin-top:22px">미지급금 (매입채무) - 미지급 합계 ${sum(db.ap)}</h3>` + table(['번호', '공급업체', '발생일', '지급기한', '금액', '참조', '지급일', '작업'], [...db.ap].reverse().map(a => [a.id, esc(sup(a.supplierId)?.name || '-'), a.date, a.due + od(a), won(a.amount), esc(a.ref),
+      a.paidDate || '<span class="badge b-warn">미지급</span>', a.paidDate ? '' : `<button class="sm pri" data-act="payAP" data-id="${a.id}">지급 처리</button>`]), [4]);
+  } },
+
+  journal: { title: '전표(분개장)', actions: '<button class="pri" data-act="addJV">+ 수기 전표</button>', render() {
+    return table(['전표번호', '일자', '차변', '대변', '금액', '적요', '참조'], [...db.journal].reverse().map(j => [j.id, j.date, esc(j.debit), esc(j.credit), won(j.amount), esc(j.memo), esc(j.ref)]), [4]);
+  } },
+
+  finance: { title: '재무 현황', render() {
+    const b = balances(), bal = n => b.find(x => x.n === n).bal;
+    const rev = b.filter(x => x.t === '수익').reduce((s, x) => s + x.bal, 0), exp = b.filter(x => x.t === '비용').reduce((s, x) => s + x.bal, 0);
+    const assets = b.filter(x => x.t === '자산').reduce((s, x) => s + x.bal, 0), debt = b.filter(x => x.t === '부채').reduce((s, x) => s + x.bal, 0), capital = bal('자본금');
+    const months = {};
+    db.journal.forEach(j => { const m = j.date.slice(0, 7); const r = months[m] ||= { rev: 0, exp: 0 };
+      [[j.debit, -1], [j.credit, 1]].forEach(([n, s]) => { const t = acctType(n); if (t === '수익') r.rev += s * j.amount; if (t === '비용') r.exp -= s * j.amount; }); });
+    return `<div class="kpis"><div class="kpi"><span>현금 잔액</span><b>${won(bal('현금'))}</b></div><div class="kpi"><span>누적 수익</span><b>${won(rev)}</b></div>
+      <div class="kpi"><span>누적 비용</span><b>${won(exp)}</b></div><div class="kpi ${rev - exp < 0 ? 'bad' : ''}"><span>누적 손익</span><b>${won(rev - exp)}</b></div></div>
+      <div class="card"><h3>재무상태 요약</h3>${table(['자산', '부채', '자본금', '누적 손익', '부채+자본+손익'], [[won(assets), won(debt), won(capital), won(rev - exp), `${won(debt + capital + rev - exp)} ${assets === debt + capital + rev - exp ? '<span class="badge b-ok">일치</span>' : '<span class="badge b-bad">불일치</span>'}`]], [0, 1, 2, 3, 4])}</div>
+      <div class="card"><h3>월별 손익</h3>${table(['월', '수익', '비용', '손익'], Object.keys(months).sort().reverse().map(m => [m, won(months[m].rev), won(months[m].exp), `<b class="${months[m].rev - months[m].exp < 0 ? 'low' : ''}">${won(months[m].rev - months[m].exp)}</b>`]), [1, 2, 3])}</div>
+      <div class="card"><h3>시산표</h3>${table(['계정', '구분', '차변 합계', '대변 합계', '잔액'], b.map(x => [x.n, x.t, won(x.d), won(x.c), won(x.bal)]), [2, 3, 4])}</div>`;
   } },
 
   suppliers: { title: '공급업체', actions: '<button class="pri" data-act="addSup">+ 업체 등록</button>', render() {
@@ -236,6 +317,12 @@ function saveEmp(fd, e) {
   }
   toast('저장 완료'); refresh();
 }
+const custForm = (c = {}) => `<div class="grid">${field('고객명', 'name', c.name, 'text', 'required')}${field('담당자', 'contact', c.contact || '')}${field('연락처', 'phone', c.phone || '')}</div>`;
+function soForm() {
+  const row = `<div class="row"><input name="pname" placeholder="제품명" required><input name="qty" type="number" min="1" value="1" required><input name="price" type="number" min="0" value="0" required><button type="button" class="sm danger" data-rm>✕</button></div>`;
+  return `<div class="grid">${select('고객', 'customerId', db.customers.map(c => [c.id, c.name]), '')}${field('납기일', 'due', addDays(7), 'date', 'required')}</div>
+    <div class="lines"><b>수주 품목 (제품명 / 수량 / 단가)</b><div id="lines">${row}</div><button type="button" class="sm" id="addLine">+ 품목 추가</button></div><template id="lineTpl">${row}</template>`;
+}
 function addDays(n) { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); }
 
 function poForm(po = { lines: [{ itemId: db.items[0]?.id, qty: 1, price: 0 }] }, supplierId = db.suppliers[0]?.id) {
@@ -294,8 +381,66 @@ const A = {
       p.net = p.base + p.allowance - p.deduction; refresh();
     });
   },
-  payPay(id) { db.payroll.find(p => p.id === id).paidDate = today(); toast('지급 처리 완료'); refresh(); },
+  payPay(id) {
+    const p = db.payroll.find(x => x.id === id); p.paidDate = today();
+    jv('급여', '현금', p.net, `${p.month} 급여 지급 (${emp(p.empId)?.name})`, p.id); jv('급여', '예수금', p.deduction, `${p.month} 급여 공제분 (${emp(p.empId)?.name})`, p.id);
+    toast('지급 처리 완료 (전표 자동 생성)'); refresh();
+  },
   delPay(id) { ask('이 급여 명세를 삭제할까요?', () => { db.payroll = db.payroll.filter(p => p.id !== id); refresh(); }); },
+  addCust() { openModal('고객 등록', custForm(), fd => { db.customers.push({ id: nextId('cust', 'C', 3), name: fd.get('name'), contact: fd.get('contact'), phone: fd.get('phone') }); refresh(); }); },
+  editCust(id) { const c = cust(id); openModal('고객 수정', custForm(c), fd => { Object.assign(c, { name: fd.get('name'), contact: fd.get('contact'), phone: fd.get('phone') }); refresh(); }); },
+  delCust(id) {
+    if (db.salesOrders.some(o => o.customerId === id) || db.ar.some(a => a.customerId === id)) return toast('수주/채권 이력이 있는 고객은 삭제할 수 없습니다.');
+    ask('삭제할까요?', () => { db.customers = db.customers.filter(c => c.id !== id); refresh(); });
+  },
+  addSO() {
+    if (!db.customers.length) return toast('고객을 먼저 등록하세요.');
+    openModal('수주 등록', soForm(), fd => {
+      const n = fd.getAll('pname'), q = fd.getAll('qty'), pr = fd.getAll('price');
+      db.salesOrders.push({ id: nextId('so', 'SO-', 4), customerId: fd.get('customerId'), date: today(), due: fd.get('due'), status: '수주', lines: n.map((x, k) => ({ name: x, qty: +q[k], price: +pr[k] })) });
+      toast('수주 등록'); refresh();
+    }); bindPoForm();
+  },
+  shipSO(id) {
+    const o = db.salesOrders.find(x => x.id === id), amt = lineTotal(o), arId = nextId('ar', 'AR-', 4);
+    ask(`${id} 출하 처리하면 매출 ${won(amt)}과 미수금이 생성됩니다. 진행할까요?`, () => {
+      o.status = '출하완료'; o.shipDate = today();
+      db.ar.push({ id: arId, ref: o.id, customerId: o.customerId, date: today(), due: addDays(30), amount: amt, paidDate: '' });
+      jv('외상매출금', '매출', amt, `${o.id} 출하 매출 (${cust(o.customerId)?.name})`, o.id); refresh();
+    });
+  },
+  cancelSO(id) { ask(`${id} 수주를 취소할까요?`, () => { db.salesOrders.find(o => o.id === id).status = '취소'; refresh(); }); },
+  addPR() {
+    if (!db.items.length) return toast('품목을 먼저 등록하세요.');
+    openModal('구매요청', `<div class="grid">${field('요청자', 'requester', '')}${select('품목', 'itemId', db.items.map(i => [i.id, `${i.name} (재고 ${num(i.stock)}${i.unit})`]), '')}
+      ${field('수량', 'qty', 1, 'number', 'min="1" required')}${field('사유', 'reason', '')}</div>`, fd => {
+      db.prs.push({ id: nextId('pr', 'PR-', 4), date: today(), requester: fd.get('requester') || '-', itemId: fd.get('itemId'), qty: +fd.get('qty'), reason: fd.get('reason'), status: '요청', poId: '' });
+      toast('구매요청 등록'); refresh();
+    });
+  },
+  approvePR(id) { db.prs.find(r => r.id === id).status = '승인'; toast('승인 완료'); refresh(); },
+  rejectPR(id) { ask('이 구매요청을 반려할까요?', () => { db.prs.find(r => r.id === id).status = '반려'; refresh(); }); },
+  prToPO(id) {
+    const r = db.prs.find(x => x.id === id), i = item(r.itemId), poId = nextId('po', 'PO-', 4);
+    db.pos.push({ id: poId, supplierId: i.supplierId, date: today(), due: addDays(sup(i.supplierId)?.leadDays || 7), status: '작성', lines: [{ itemId: i.id, qty: r.qty, price: i.price, received: 0 }] });
+    r.status = '발주전환'; r.poId = poId; toast(`${poId} 발주서 생성 (발주 관리에서 확정)`); refresh();
+  },
+  receiveAR(id) {
+    const a = db.ar.find(x => x.id === id); a.paidDate = today();
+    jv('현금', '외상매출금', a.amount, `${a.ref} 매출대금 입금 (${cust(a.customerId)?.name})`, a.id); toast('입금 처리 (전표 자동 생성)'); refresh();
+  },
+  payAP(id) {
+    const a = db.ap.find(x => x.id === id); a.paidDate = today();
+    jv('외상매입금', '현금', a.amount, `${a.ref} 매입대금 지급 (${sup(a.supplierId)?.name})`, a.id); toast('지급 처리 (전표 자동 생성)'); refresh();
+  },
+  addJV() {
+    openModal('수기 전표', `<div class="grid">${field('일자', 'date', today(), 'date', 'required')}${field('금액(원)', 'amount', 0, 'number', 'min="1" required')}
+      ${select('차변 계정', 'debit', ACCTS.map(a => [a[0], `${a[0]} (${a[1]})`]), '기타비용')}${select('대변 계정', 'credit', ACCTS.map(a => [a[0], `${a[0]} (${a[1]})`]), '현금')}${field('적요', 'memo', '', 'text', 'class="full"')}</div>`, fd => {
+      if (fd.get('debit') === fd.get('credit')) { toast('차변과 대변 계정이 같습니다.'); return false; }
+      db.journal.push({ id: nextId('jv', 'JV-', 4), date: fd.get('date'), debit: fd.get('debit'), credit: fd.get('credit'), amount: +fd.get('amount'), memo: fd.get('memo'), ref: '수기' });
+      toast('전표 등록'); refresh();
+    });
+  },
   addItem() { openModal('품목 등록', itemForm(), fd => { db.items.push({ id: nextId('item', 'M', 3), name: fd.get('name'), category: fd.get('category'), unit: fd.get('unit'), supplierId: fd.get('supplierId'), price: +fd.get('price'), safety: +fd.get('safety'), stock: 0 }); refresh(); }); },
   editItem(id) { const i = item(id); openModal('품목 수정', itemForm(i), fd => { Object.assign(i, { name: fd.get('name'), category: fd.get('category'), unit: fd.get('unit'), supplierId: fd.get('supplierId'), price: +fd.get('price'), safety: +fd.get('safety') }); refresh(); }); },
   delItem(id) {
@@ -329,12 +474,15 @@ const A = {
     const rows = p.lines.map((l, k) => `<tr><td>${esc(item(l.itemId).name)}</td><td class="num">${num(l.qty)}</td><td class="num">${num(l.received)}</td>
       <td><input name="r${k}" type="number" min="0" max="${l.qty - l.received}" value="${l.qty - l.received}"></td></tr>`).join('');
     openModal(`${id} 입고 처리`, `<table><thead><tr><th>품목</th><th class="num">발주</th><th class="num">기입고</th><th>이번 입고수량</th></tr></thead><tbody>${rows}</tbody></table>`, fd => {
-      let any = false;
+      let any = false, amt = 0;
       p.lines.forEach((l, k) => {
         const q = Math.min(Math.max(0, +fd.get('r' + k) || 0), l.qty - l.received);
-        if (q > 0) { move('입고', l.itemId, q, p.id); l.received += q; any = true; }
+        if (q > 0) { move('입고', l.itemId, q, p.id); l.received += q; any = true; amt += q * l.price; }
       });
       if (!any) { toast('입고수량을 입력하세요.'); return false; }
+      const s = sup(p.supplierId), apId = nextId('ap', 'AP-', 4);
+      db.ap.push({ id: apId, ref: p.id, supplierId: p.supplierId, date: today(), due: addDays(30), amount: amt, paidDate: '' });
+      jv('원재료', '외상매입금', amt, `${p.id} 입고 매입 (${s?.name || ''})`, apId);
       p.status = p.lines.every(l => l.received >= l.qty) ? '입고완료' : '부분입고';
       toast('입고 처리 완료'); refresh();
     });
