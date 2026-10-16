@@ -11,7 +11,7 @@ const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '
 function seed() {
   const d = today();
   return {
-    seq: { item: 5, sup: 3, po: 2, mv: 5, emp: 3, pay: 2, cust: 2, so: 2, pr: 1, ar: 1, ap: 1, jv: 3 },
+    seq: { item: 5, sup: 3, po: 2, mv: 5, emp: 3, pay: 2, site: 4, cost: 8, cust: 2, so: 2, pr: 1, ar: 1, ap: 1, jv: 3 },
     suppliers: [
       { id: 'S001', name: '대한철강', contact: '김철수', phone: '02-1111-2222', leadDays: 5 },
       { id: 'S002', name: '한국화학', contact: '이영희', phone: '031-333-4444', leadDays: 7 },
@@ -29,16 +29,31 @@ function seed() {
       { id: 'PO-0002', supplierId: 'S002', date: d, due: d, status: '작성', lines: [{ itemId: 'M004', qty: 100, price: 8000, received: 0 }] },
     ],
     employees: [
-      { id: 'E001', name: '김정규', dept: '생산', position: '팀장', type: '정규직', hireDate: '2021-03-02', contractEnd: '', baseSalary: 4200000, phone: '010-1111-0001', status: '재직',
+      { id: 'E001', name: '김정규', dept: '생산', position: '팀장', type: '정규직', siteId: 'ST004', hireDate: '2021-03-02', contractEnd: '', baseSalary: 4200000, phone: '010-1111-0001', status: '재직',
         salaryLog: [{ date: '2021-03-02', amount: 3600000, memo: '입사' }, { date: '2024-01-01', amount: 4200000, memo: '승진 인상' }] },
-      { id: 'E002', name: '이계약', dept: '자재', position: '사원', type: '계약직', hireDate: '2026-03-01', contractEnd: addDays(20), baseSalary: 2800000, phone: '010-1111-0002', status: '재직',
+      { id: 'E002', name: '이계약', dept: '자재', position: '사원', type: '계약직', siteId: 'ST003', hireDate: '2026-03-01', contractEnd: addDays(20), baseSalary: 2800000, phone: '010-1111-0002', status: '재직',
         salaryLog: [{ date: '2026-03-01', amount: 2800000, memo: '입사' }] },
-      { id: 'E003', name: '박계약', dept: '현장', position: '작업자', type: '계약직', hireDate: '2026-06-01', contractEnd: addDays(150), baseSalary: 2600000, phone: '010-1111-0003', status: '재직',
+      { id: 'E003', name: '박계약', dept: '현장', position: '작업자', type: '계약직', siteId: 'ST001', hireDate: '2026-06-01', contractEnd: addDays(150), baseSalary: 2600000, phone: '010-1111-0003', status: '재직',
         salaryLog: [{ date: '2026-06-01', amount: 2600000, memo: '입사' }] },
     ],
     payroll: [
       { id: 'PAY-0001', month: today().slice(0, 7), empId: 'E001', base: 4200000, allowance: 200000, deduction: 450000, net: 3950000, paidDate: '' },
       { id: 'PAY-0002', month: today().slice(0, 7), empId: 'E002', base: 2800000, allowance: 0, deduction: 260000, net: 2540000, paidDate: '' },
+    ],
+    sites: [
+      { id: 'ST001', name: '한강 제2교량 신설', type: '교량', location: '서울 강동구', manager: '김정규', startDate: addDays(-300), endDate: addDays(200), progress: 62, phase: '상부구조(거더)', budget: 2800000000, extraWorkers: 34 },
+      { id: 'ST002', name: '낙동강 인도교 설계', type: '교량', location: '경남 창녕군', manager: '박설계', startDate: addDays(-60), endDate: addDays(240), progress: 18, phase: '지반조사', budget: 450000000, extraWorkers: 6 },
+      { id: 'ST003', name: '행복 아파트 A단지', type: '아파트', location: '경기 화성시', manager: '이계약', startDate: addDays(-240), endDate: addDays(300), progress: 41, phase: '골조', budget: 5600000000, extraWorkers: 78 },
+      { id: 'ST004', name: '해솔 아파트 B단지', type: '아파트', location: '인천 서구', manager: '최소장', startDate: addDays(-520), endDate: addDays(40), progress: 88, phase: '내부마감', budget: 4100000000, extraWorkers: 52 },
+    ],
+    siteCosts: [
+      { id: 'SC-0001', siteId: 'ST001', date: addDays(-30), category: '자재비', amount: 1020000000, memo: '기집행(기초)', journal: false },
+      { id: 'SC-0002', siteId: 'ST001', date: addDays(-10), category: '노무비', amount: 560000000, memo: '기집행(기초)', journal: false },
+      { id: 'SC-0003', siteId: 'ST002', date: addDays(-20), category: '외주비', amount: 70000000, memo: '기집행(기초)', journal: false },
+      { id: 'SC-0004', siteId: 'ST003', date: addDays(-15), category: '자재비', amount: 1500000000, memo: '기집행(기초)', journal: false },
+      { id: 'SC-0005', siteId: 'ST003', date: addDays(-5), category: '노무비', amount: 980000000, memo: '기집행(기초)', journal: false },
+      { id: 'SC-0006', siteId: 'ST004', date: addDays(-12), category: '자재비', amount: 2300000000, memo: '기집행(기초)', journal: false },
+      { id: 'SC-0007', siteId: 'ST004', date: addDays(-4), category: '노무비', amount: 1700000000, memo: '기집행(기초)', journal: false },
     ],
     customers: [
       { id: 'C001', name: '(주)한빛전자', contact: '정대리', phone: '02-700-1000' },
@@ -69,14 +84,14 @@ function seed() {
 }
 let db;
 try { db = JSON.parse(localStorage.getItem(KEY)) || seed(); } catch { db = seed(); }
-{ const s = seed(); ['employees', 'payroll', 'customers', 'salesOrders', 'prs', 'ar', 'ap', 'journal'].forEach(k => { db[k] ||= s[k]; }); Object.keys(s.seq).forEach(k => { db.seq[k] ??= s.seq[k]; }); }
+{ const s = seed(); ['sites', 'siteCosts', 'employees', 'payroll', 'customers', 'salesOrders', 'prs', 'ar', 'ap', 'journal'].forEach(k => { db[k] ||= s[k]; }); Object.keys(s.seq).forEach(k => { db.seq[k] ??= s.seq[k]; }); db.employees.forEach(e => { if (e.siteId === undefined) e.siteId = s.employees.find(x => x.id === e.id)?.siteId || ''; }); }
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch { /* 저장 불가 시 메모리만 사용 */ } };
 const nextId = (k, prefix, pad) => prefix + String(++db.seq[k]).padStart(pad, '0');
 const item = id => db.items.find(i => i.id === id);
 const sup = id => db.suppliers.find(s => s.id === id);
 const cust = id => db.customers.find(c => c.id === id);
 const lineTotal = o => o.lines.reduce((a, l) => a + l.qty * l.price, 0);
-const ACCTS = [['현금', '자산'], ['외상매출금', '자산'], ['원재료', '자산'], ['외상매입금', '부채'], ['예수금', '부채'], ['자본금', '자본'], ['매출', '수익'], ['기타수익', '수익'], ['급여', '비용'], ['기타비용', '비용']];
+const ACCTS = [['현금', '자산'], ['외상매출금', '자산'], ['원재료', '자산'], ['외상매입금', '부채'], ['예수금', '부채'], ['자본금', '자본'], ['매출', '수익'], ['기타수익', '수익'], ['급여', '비용'], ['공사원가', '비용'], ['기타비용', '비용']];
 const acctType = n => ACCTS.find(a => a[0] === n)[1];
 function jv(debit, credit, amount, memo, ref = '') { if (amount > 0) db.journal.push({ id: nextId('jv', 'JV-', 4), date: today(), debit, credit, amount, memo, ref }); }
 /* 계정 잔액: 자산·비용은 차변-대변, 부채·자본·수익은 대변-차변 */
@@ -84,6 +99,22 @@ function balances() {
   const b = Object.fromEntries(ACCTS.map(([n]) => [n, { d: 0, c: 0 }]));
   db.journal.forEach(j => { b[j.debit].d += j.amount; b[j.credit].c += j.amount; });
   return ACCTS.map(([n, t]) => ({ n, t, d: b[n].d, c: b[n].c, bal: ['자산', '비용'].includes(t) ? b[n].d - b[n].c : b[n].c - b[n].d }));
+}
+const site = id => db.sites.find(s => s.id === id);
+const PHASES = {
+  교량: ['설계', '지반조사', '기초공', '교각공', '상부구조(거더)', '교면포장', '부대공', '준공'],
+  아파트: ['설계·인허가', '터파기·기초', '골조', '외장·창호', '설비·전기', '내부마감', '조경·외부', '준공·입주'],
+};
+const eok = n => n >= 1e8 ? (n / 1e8).toLocaleString('ko-KR', { maximumFractionDigits: 1 }) + '억원' : won(n);
+function siteStats(s) {
+  const staff = db.employees.filter(e => e.siteId === s.id && e.status === '재직');
+  const reg = staff.filter(e => e.type === '정규직').length, con = staff.length - reg;
+  const spent = db.siteCosts.filter(c => c.siteId === s.id).reduce((a, c) => a + c.amount, 0);
+  const t0 = new Date(s.startDate), t1 = new Date(s.endDate), now = new Date(today());
+  const plan = Math.round(Math.min(1, Math.max(0, (now - t0) / (t1 - t0))) * 100);
+  const lag = plan - s.progress;
+  const state = s.progress >= 100 ? ['준공', 'b-ok'] : lag > 10 ? ['공정 지연', 'b-bad'] : lag > 5 ? ['지연 주의', 'b-warn'] : ['정상', 'b-ok'];
+  return { staff, reg, con, spent, plan, state, total: reg + con + (s.extraWorkers || 0), over: spent / s.budget > s.progress / 100 + 0.1, dleft: Math.ceil((t1 - now) / 864e5) };
 }
 const emp = id => db.employees.find(e => e.id === id);
 const dday = e => Math.ceil((new Date(e.contractEnd) - new Date(today())) / 864e5);
@@ -111,7 +142,7 @@ const select = (label, name, opts, sel, cls = '') => `<label class="${cls}">${la
 
 /* ---------- 화면 ---------- */
 const views = {
-  dashboard: { title: '대시보드', render() {
+  dashboard: { title: '자재·재무 대시보드', render() {
     const value = db.items.reduce((a, i) => a + i.stock * i.price, 0);
     const low = db.items.filter(i => i.stock < i.safety);
     const open = db.pos.filter(p => ['발주', '부분입고'].includes(p.status));
@@ -170,9 +201,9 @@ const views = {
       (e.status === '재직' ? ` <button class="sm danger" data-act="retireEmp" data-id="${e.id}">퇴직</button>` : '');
     return `<div class="bar"><select id="ef">${['전체', '정규직', '계약직'].map(t => `<option ${t === f ? 'selected' : ''}>${t}</option>`).join('')}</select>
       <input id="eq" placeholder="이름/부서/직급 검색" value="${esc(views.employees.q || '')}"></div>` +
-      table(['사번', '이름', '부서', '직급', '고용형태', '입사일', '계약만료', '월 기본급', '상태', '작업'], rows.map(e => [e.id, esc(e.name), esc(e.dept), esc(e.position),
+      table(['사번', '이름', '부서', '직급', '소속 현장', '고용형태', '입사일', '계약만료', '월 기본급', '상태', '작업'], rows.map(e => [e.id, esc(e.name), esc(e.dept), esc(e.position), esc(site(e.siteId)?.name || '미배정'),
         `<span class="badge ${e.type === '정규직' ? 'b-ok' : 'b-info'}">${e.type}</span>`, e.hireDate, contractBadge(e), won(e.baseSalary),
-        e.status === '재직' ? '재직' : `<span class="badge">퇴직 ${e.retireDate || ''}</span>`, act(e)]), [7]);
+        e.status === '재직' ? '재직' : `<span class="badge">퇴직 ${e.retireDate || ''}</span>`, act(e)]), [8]);
   } },
 
   payroll: { title: '급여 관리', actions: '<button class="pri" data-act="genPayroll">재직자 급여 일괄 생성</button>', render() {
@@ -188,6 +219,30 @@ const views = {
           p.paidDate || '<span class="badge b-warn">미지급</span>',
           p.paidDate ? '' : `<button class="sm" data-act="editPay" data-id="${p.id}">수정</button> <button class="sm pri" data-act="payPay" data-id="${p.id}">지급 처리</button> <button class="sm danger" data-act="delPay" data-id="${p.id}">삭제</button>`];
       }), [3, 4, 5, 6]);
+  } },
+
+  sites: { title: '현장 현황', actions: '<button class="pri" data-act="addSite">+ 현장 등록</button>', render() {
+    const st = db.sites.map(s => [s, siteStats(s)]);
+    const budget = db.sites.reduce((a, s) => a + s.budget, 0), spent = st.reduce((a, [, x]) => a + x.spent, 0), ppl = st.reduce((a, [, x]) => a + x.total, 0);
+    const late = st.filter(([, x]) => ['공정 지연'].includes(x.state[0])).length;
+    const card = ([s, x]) => {
+      const ph = PHASES[s.type], cur = ph.indexOf(s.phase), pct = Math.round(x.spent / s.budget * 100);
+      return `<article class="site"><div class="sh"><div><h3>${esc(s.name)}</h3><div class="sub">${esc(s.location)} · 현장소장 ${esc(s.manager)}</div></div>
+        <div class="tags"><span class="badge ${s.type === '교량' ? 'b-info' : 'b-warn'}">${s.type}</span> <span class="badge ${x.state[1]}">${x.state[0]}</span></div></div>
+        <div class="prog"><div class="pl"><b>${s.progress}%</b><span>계획 ${x.plan}% · ${x.dleft >= 0 ? `준공까지 ${num(x.dleft)}일` : `준공예정 ${-x.dleft}일 경과`}</span></div>
+          <div class="track"><i class="${x.state[1]}" style="width:${s.progress}%"></i><u style="left:${x.plan}%"></u></div></div>
+        <div class="cur">현재 공정 <b>${esc(s.phase)}</b> <span>(${s.progress >= 100 ? ph.length : cur + 1}/${ph.length} 단계)</span></div>
+        <div class="steps" title="전체 공정">${ph.map((p, k) => `<span class="${k < cur ? 'done' : k === cur ? 'now' : ''}">${esc(p)}</span>`).join('')}</div>
+        <div class="stats"><div><span>예산</span><b>${eok(s.budget)}</b></div><div><span>집행</span><b>${eok(x.spent)}</b></div><div><span>집행률</span><b class="${x.over ? 'low' : ''}">${pct}%</b></div></div>
+        <div class="track thin"><i class="${x.over ? 'b-bad' : 'b-info'}" style="width:${Math.min(100, pct)}%"></i></div>
+        ${x.over ? '<div class="warnline">공정률 대비 집행률이 높습니다. 예산 초과에 유의하세요.</div>' : ''}
+        <div class="stats"><div><span>정규직</span><b>${x.reg}명</b></div><div><span>계약직</span><b>${x.con}명</b></div><div><span>외주·일용</span><b>${num(s.extraWorkers || 0)}명</b></div><div><span>총 인원</span><b>${num(x.total)}명</b></div></div>
+        <div class="foot"><button class="sm" data-act="siteDetail" data-id="${s.id}">상세</button><button class="sm" data-act="addCost" data-id="${s.id}">비용 등록</button>
+          <button class="sm pri" data-act="updateSite" data-id="${s.id}">진행 업데이트</button><button class="sm" data-act="editSite" data-id="${s.id}">수정</button></div></article>`;
+    };
+    return `<div class="kpis"><div class="kpi"><span>운영 현장</span><b>${db.sites.length}</b></div><div class="kpi ${late ? 'bad' : ''}"><span>공정 지연 현장</span><b>${late}</b></div>
+      <div class="kpi"><span>총 예산</span><b>${eok(budget)}</b></div><div class="kpi"><span>총 집행</span><b>${eok(spent)}</b></div><div class="kpi"><span>전체 투입 인원</span><b>${num(ppl)}명</b></div></div>
+      ${db.sites.length ? `<div class="sitegrid">${st.map(card).join('')}</div>` : '<div class="card" style="color:var(--mute)">등록된 현장이 없습니다. 현장 등록을 눌러 추가하세요.</div>'}`;
   } },
 
   customers: { title: '고객 관리', actions: '<button class="pri" data-act="addCust">+ 고객 등록</button>', render() {
@@ -299,7 +354,7 @@ const supForm = (s = {}) => `<div class="grid">${field('업체명', 'name', s.na
   ${field('연락처', 'phone', s.phone || '')}${field('리드타임(일)', 'leadDays', s.leadDays ?? 3, 'number', 'min="0"')}</div>`;
 
 const empForm = (e = {}) => `<div class="grid">${field('이름', 'name', e.name, 'text', 'required')}${field('부서', 'dept', e.dept || '')}${field('직급', 'position', e.position || '')}
-  ${select('고용형태', 'type', [['정규직', '정규직'], ['계약직', '계약직']], e.type || '정규직')}${field('입사일', 'hireDate', e.hireDate || today(), 'date', 'required')}
+  ${select('고용형태', 'type', [['정규직', '정규직'], ['계약직', '계약직']], e.type || '정규직')}${select('소속 현장', 'siteId', [['', '미배정'], ...db.sites.map(s => [s.id, s.name])], e.siteId || '')}${field('입사일', 'hireDate', e.hireDate || today(), 'date', 'required')}
   ${field('계약 만료일(계약직)', 'contractEnd', e.contractEnd || '', 'date')}${field('월 기본급(원)', 'baseSalary', e.baseSalary ?? 0, 'number', 'min="0" required')}${field('연락처', 'phone', e.phone || '')}
   ${e.id ? field('기본급 변경 사유', 'memo', '', 'text', 'placeholder="기본급을 바꿀 때 입력"') : ''}</div>`;
 function bindEmpForm() {
@@ -307,7 +362,7 @@ function bindEmpForm() {
   f.elements.type.onchange = sync; sync();
 }
 function saveEmp(fd, e) {
-  const data = { name: fd.get('name'), dept: fd.get('dept'), position: fd.get('position'), type: fd.get('type'), hireDate: fd.get('hireDate'),
+  const data = { name: fd.get('name'), dept: fd.get('dept'), position: fd.get('position'), type: fd.get('type'), siteId: fd.get('siteId'), hireDate: fd.get('hireDate'),
     contractEnd: fd.get('type') === '계약직' ? fd.get('contractEnd') : '', baseSalary: +fd.get('baseSalary'), phone: fd.get('phone') };
   if (!e) { Object.assign(data, { id: nextId('emp', 'E', 3), status: '재직', salaryLog: [{ date: data.hireDate, amount: data.baseSalary, memo: '입사' }] }); db.employees.push(data); }
   else {
@@ -322,6 +377,16 @@ function soForm() {
   const row = `<div class="row"><input name="pname" placeholder="제품명" required><input name="qty" type="number" min="1" value="1" required><input name="price" type="number" min="0" value="0" required><button type="button" class="sm danger" data-rm>✕</button></div>`;
   return `<div class="grid">${select('고객', 'customerId', db.customers.map(c => [c.id, c.name]), '')}${field('납기일', 'due', addDays(7), 'date', 'required')}</div>
     <div class="lines"><b>수주 품목 (제품명 / 수량 / 단가)</b><div id="lines">${row}</div><button type="button" class="sm" id="addLine">+ 품목 추가</button></div><template id="lineTpl">${row}</template>`;
+}
+const siteForm = (s = {}) => `<div class="grid">${field('현장명', 'name', s.name, 'text', 'required')}${select('공사 종류', 'type', [['교량', '교량'], ['아파트', '아파트']], s.type || '교량')}
+  ${field('위치', 'location', s.location || '')}${field('현장소장', 'manager', s.manager || '')}${field('착공일', 'startDate', s.startDate || today(), 'date', 'required')}${field('준공예정일', 'endDate', s.endDate || addDays(365), 'date', 'required')}
+  ${field('총 예산(원)', 'budget', s.budget ?? 0, 'number', 'min="1" required')}${field('외주·일용 인원(명)', 'extraWorkers', s.extraWorkers ?? 0, 'number', 'min="0"')}</div>`;
+function bindSiteForm() { }
+function readSite(fd, s) {
+  const type = fd.get('type');
+  Object.assign(s, { name: fd.get('name'), type, location: fd.get('location'), manager: fd.get('manager'), startDate: fd.get('startDate'), endDate: fd.get('endDate'), budget: +fd.get('budget'), extraWorkers: +fd.get('extraWorkers') || 0 });
+  if (!PHASES[type].includes(s.phase)) s.phase = PHASES[type][0];
+  return s;
 }
 function addDays(n) { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); }
 
@@ -441,6 +506,33 @@ const A = {
       toast('전표 등록'); refresh();
     });
   },
+  addSite() { openModal('현장 등록', siteForm(), fd => { db.sites.push(readSite(fd, { id: nextId('site', 'ST', 3), progress: 0 })); toast('현장 등록'); refresh(); }); bindSiteForm(); },
+  editSite(id) { const s = site(id); openModal('현장 수정', siteForm(s), fd => { readSite(fd, s); refresh(); }); bindSiteForm(); },
+  updateSite(id) {
+    const s = site(id);
+    openModal(`${s.name} 진행 업데이트`, `<div class="grid">${select('현재 공정 단계', 'phase', PHASES[s.type].map(p => [p, p]), s.phase)}${field('공정률(%)', 'progress', s.progress, 'number', 'min="0" max="100" required')}</div>`, fd => {
+      s.phase = fd.get('phase'); s.progress = Math.min(100, Math.max(0, +fd.get('progress'))); toast('진행 현황 저장'); refresh();
+    });
+  },
+  addCost(id) {
+    const s = site(id);
+    openModal(`${s.name} 비용 등록`, `<div class="grid">${field('일자', 'date', today(), 'date', 'required')}${select('비용 구분', 'category', ['자재비', '노무비', '장비비', '외주비', '경비'].map(c => [c, c]), '자재비')}
+      ${field('금액(원)', 'amount', 0, 'number', 'min="1" required')}${field('내용', 'memo', '')}</div>`, fd => {
+      const c = { id: nextId('cost', 'SC-', 4), siteId: id, date: fd.get('date'), category: fd.get('category'), amount: +fd.get('amount'), memo: fd.get('memo'), journal: true };
+      db.siteCosts.push(c); jv('공사원가', '현금', c.amount, `${s.name} ${c.category} ${c.memo}`.trim(), c.id); toast('비용 등록 (전표 자동 생성)'); refresh();
+    });
+  },
+  siteDetail(id) {
+    const s = site(id), x = siteStats(s);
+    const costs = db.siteCosts.filter(c => c.siteId === id).sort((a, b) => b.date.localeCompare(a.date)).map(c => [c.date, c.category, won(c.amount), esc(c.memo)]);
+    const byCat = {}; db.siteCosts.filter(c => c.siteId === id).forEach(c => { byCat[c.category] = (byCat[c.category] || 0) + c.amount; });
+    const ph = PHASES[s.type], cur = ph.indexOf(s.phase), fin = s.progress >= 100;
+    const tl = `<ol class="tl">${ph.map((p, k) => { const st = fin || k < cur ? 'done' : k === cur ? 'now' : 'next';
+      return `<li class="${st}"><i>${st === 'done' ? '✓' : k + 1}</i><span>${esc(p)}</span><em>${st === 'done' ? '완료' : st === 'now' ? '현재 진행중' : '예정'}</em></li>`; }).join('')}</ol>`;
+    openModal(s.name, `<h4>전체 공정 (${s.type}) - 공정률 ${s.progress}%</h4>${tl}<h4>구분별 집행</h4>${table(['구분', '금액', '예산 대비'], Object.entries(byCat).map(([k, v]) => [k, won(v), (v / s.budget * 100).toFixed(1) + '%']), [1, 2])}
+      <h4>비용 내역</h4>${table(['일자', '구분', '금액', '내용'], costs, [2])}
+      <h4>배치 직원</h4>${table(['사번', '이름', '직급', '고용형태'], x.staff.map(e => [e.id, esc(e.name), esc(e.position), e.type]), [])}`, () => {}, '닫기');
+  },
   addItem() { openModal('품목 등록', itemForm(), fd => { db.items.push({ id: nextId('item', 'M', 3), name: fd.get('name'), category: fd.get('category'), unit: fd.get('unit'), supplierId: fd.get('supplierId'), price: +fd.get('price'), safety: +fd.get('safety'), stock: 0 }); refresh(); }); },
   editItem(id) { const i = item(id); openModal('품목 수정', itemForm(i), fd => { Object.assign(i, { name: fd.get('name'), category: fd.get('category'), unit: fd.get('unit'), supplierId: fd.get('supplierId'), price: +fd.get('price'), safety: +fd.get('safety') }); refresh(); }); },
   delItem(id) {
@@ -512,4 +604,4 @@ document.addEventListener('click', e => {
 });
 $('#modal').addEventListener('mousedown', e => { if (e.target.id === 'modal') closeModal(); });
 $('#resetBtn').onclick = () => ask('모든 데이터를 샘플 데이터로 초기화할까요?', () => { db = seed(); refresh(); });
-show('dashboard');
+show('sites');
