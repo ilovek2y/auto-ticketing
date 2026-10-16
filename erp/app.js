@@ -52,13 +52,14 @@ const shortage = i => Math.max(0, i.safety - i.stock - onOrder(i.id));
 function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.remove('hidden'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.add('hidden'), 2200); }
 
 /* ---------- 모달 ---------- */
-function openModal(title, html, onSubmit) {
+function openModal(title, html, onSubmit, label = '저장') {
   $('#mTitle').textContent = title;
-  $('#mForm').innerHTML = html + '<div class="foot"><button type="button" id="mCancel">취소</button><button class="pri">저장</button></div>';
+  $('#mForm').innerHTML = html + '<div class="foot"><button type="button" id="mCancel">취소</button><button class="pri">' + label + '</button></div>';
   $('#modal').classList.remove('hidden');
   $('#mCancel').onclick = closeModal;
   $('#mForm').onsubmit = e => { e.preventDefault(); if (onSubmit(new FormData(e.target), e.target) !== false) closeModal(); };
 }
+const ask = (msg, fn) => openModal('확인', `<p>${esc(msg)}</p>`, () => { fn(); }, '확인');
 const closeModal = () => $('#modal').classList.add('hidden');
 const field = (label, name, val = '', type = 'text', extra = '') => `<label>${label}<input name="${name}" type="${type}" value="${esc(val)}" ${extra}></label>`;
 const select = (label, name, opts, sel, cls = '') => `<label class="${cls}">${label}<select name="${name}">${opts.map(([v, t]) => `<option value="${esc(v)}" ${v === sel ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></label>`;
@@ -194,13 +195,13 @@ const A = {
   editItem(id) { const i = item(id); openModal('품목 수정', itemForm(i), fd => { Object.assign(i, { name: fd.get('name'), category: fd.get('category'), unit: fd.get('unit'), supplierId: fd.get('supplierId'), price: +fd.get('price'), safety: +fd.get('safety') }); refresh(); }); },
   delItem(id) {
     if (db.moves.some(m => m.itemId === id) || db.pos.some(p => p.lines.some(l => l.itemId === id))) return toast('입출고/발주 이력이 있는 품목은 삭제할 수 없습니다.');
-    if (confirm('삭제할까요?')) { db.items = db.items.filter(i => i.id !== id); refresh(); }
+    ask('삭제할까요?', () => { db.items = db.items.filter(i => i.id !== id); refresh(); });
   },
   addSup() { openModal('업체 등록', supForm(), fd => { db.suppliers.push({ id: nextId('sup', 'S', 3), name: fd.get('name'), contact: fd.get('contact'), phone: fd.get('phone'), leadDays: +fd.get('leadDays') }); refresh(); }); },
   editSup(id) { const s = sup(id); openModal('업체 수정', supForm(s), fd => { Object.assign(s, { name: fd.get('name'), contact: fd.get('contact'), phone: fd.get('phone'), leadDays: +fd.get('leadDays') }); refresh(); }); },
   delSup(id) {
     if (db.items.some(i => i.supplierId === id) || db.pos.some(p => p.supplierId === id)) return toast('품목/발주에서 사용 중인 업체는 삭제할 수 없습니다.');
-    if (confirm('삭제할까요?')) { db.suppliers = db.suppliers.filter(s => s.id !== id); refresh(); }
+    ask('삭제할까요?', () => { db.suppliers = db.suppliers.filter(s => s.id !== id); refresh(); });
   },
   addPO() {
     if (!db.items.length || !db.suppliers.length) return toast('품목과 공급업체를 먼저 등록하세요.');
@@ -216,7 +217,7 @@ const A = {
   cancelPO(id) {
     const p = db.pos.find(x => x.id === id);
     if (p.lines.some(l => l.received)) return toast('입고된 내역이 있어 취소할 수 없습니다.');
-    if (confirm(`${id} 발주를 취소할까요?`)) { p.status = '취소'; refresh(); }
+    ask(`${id} 발주를 취소할까요?`, () => { p.status = '취소'; refresh(); });
   },
   receivePO(id) {
     const p = db.pos.find(x => x.id === id);
@@ -257,5 +258,5 @@ document.addEventListener('click', e => {
   const b = e.target.closest('[data-act]'); if (b && A[b.dataset.act]) A[b.dataset.act](b.dataset.id);
 });
 $('#modal').addEventListener('mousedown', e => { if (e.target.id === 'modal') closeModal(); });
-$('#resetBtn').onclick = () => { if (confirm('모든 데이터를 샘플 데이터로 초기화할까요?')) { db = seed(); refresh(); } };
+$('#resetBtn').onclick = () => ask('모든 데이터를 샘플 데이터로 초기화할까요?', () => { db = seed(); refresh(); });
 show('dashboard');
